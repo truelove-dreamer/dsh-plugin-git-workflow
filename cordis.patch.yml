@@ -1,0 +1,3 @@
+- insert:
+    - id: git-workflow
+      name: dsh-plugin-git-workflow
