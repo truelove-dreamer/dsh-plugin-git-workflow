@@ -46,14 +46,14 @@ git_branch                        # 分支列表
 
 ## 设计说明
 
-- **零 shell**:所有 git 调用走 `child_process.execFile("git", argsArray)`,参数数组传递,用户输入永远不可能被解释为 shell 语法。
+- **零 shell 注入**:所有 git 调用经 harness 的 shell 执行器(`ctx.shell`)运行,参数逐个引号转义,用户输入不可能被解释为 shell 语法——同时继承沙箱与审批语义(read-only 会话无法 commit)。
 - **输入校验**:commit message 非空、≤2000 字符、无 NUL;路径拒绝绝对路径与 `..` 穿越(反斜杠归一化后检查),保证不越出仓库。
 - **纯逻辑可单测**:解析(porcelain / diff-stat / log / branch)与校验全部在 `lib/git.js` 纯函数里,`npm test` 零依赖。
 - **结构化输出**:每个工具返回带 schema 的 JSON,render 输出可读文本;失败返回 `{ ok:false, exitCode, message }` 而非裸报错。
 
 ## 诚实边界
 
-- 工具直接以 host 进程身份运行 `git`,**不经过 fs-sandbox 围栏**;路径校验是词法级的,符号链接/工作树外路径依赖 git 自身约束。需要更强隔离时,请勿在 untrusted 会话挂载此插件。
+- git 调用经 harness 的 shell 执行器(`ctx.shell`)运行,继承沙箱与审批语义;路径校验是词法级的,符号链接/工作树外路径依赖 git 自身约束。read-only 模式下写操作(git add / commit)会被沙箱拒绝。
 - commit 需要仓库已配置 `user.name`/`user.email`(git 自身报错会透传)。
 - `git_log` 的 `files` 解析假设 `--name-status` 输出格式;非常规编码的路径可能显示不完整。
 - 不含 push / pull / rebase 等网络操作(后续版本可加,需审批语义配合)。
